@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Upload and Canvas Drawing</title>
+<style>
+    #header {
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+    }
+    #canvasContainer {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        width: 50%;
+        height:40%;
+    }
+    #canvas {
+        border: 1px solid black;
+    }
+    #loader {
+    margin: 20px;
+  --w:10ch;
+  font-weight: bold;
+  font-family: monospace;
+  font-color:green;
+  font-size: 20px;
+  line-height: 1.4em;
+  letter-spacing: var(--w);
+  width: var(--w);
+  overflow: hidden;
+  white-space: nowrap;
+  color: #0000;
+  text-shadow:
+        calc( 0*var(--w)) 0 #000,calc(-1*var(--w)) 0 #000,calc(-2*var(--w)) 0 #000,calc(-3*var(--w)) 0 #000,calc(-4*var(--w)) 0 #000,
+        calc(-5*var(--w)) 0 #000,calc(-6*var(--w)) 0 #000,calc(-7*var(--w)) 0 #000,calc(-8*var(--w)) 0 #000,calc(-9*var(--w)) 0 #000;
+  animation: l20 2s infinite linear;
+}
+#loader:before {
+  content:"waiting...";
+}
+
+@keyframes l20 {
+  9.09% {text-shadow:
+        calc( 0*var(--w)) -10px #000,calc(-1*var(--w)) 0 #000,calc(-2*var(--w)) 0 #000,calc(-3*var(--w)) 0 #000,calc(-4*var(--w)) 0 #000,
+        calc(-5*var(--w)) 0 #000,calc(-6*var(--w)) 0 #000,calc(-7*var(--w)) 0 #000,calc(-8*var(--w)) 0 #000,calc(-9*var(--w)) 0 #000}
+  18.18% {text-shadow:
+        calc( 0*var(--w)) 0 #000,calc(-1*var(--w)) -10px #000,calc(-2*var(--w)) 0 #000,calc(-3*var(--w)) 0 #000,calc(-4*var(--w)) 0 #000,
+        calc(-5*var(--w)) 0 #000,calc(-6*var(--w)) 0 #000,calc(-7*var(--w)) 0 #000,calc(-8*var(--w)) 0 #000,calc(-9*var(--w)) 0 #000}
+  27.27% {text-shadow:
+        calc( 0*var(--w)) 0 #000,calc(-1*var(--w)) 0 #000,calc(-2*var(--w)) -10px #000,calc(-3*var(--w)) 0 #000,calc(-4*var(--w)) 0 #000,
+        calc(-5*var(--w)) 0 #000,calc(-6*var(--w)) 0 #000,calc(-7*var(--w)) 0 #000,calc(-8*var(--w)) 0 #000,calc(-9*var(--w)) 0 #000}
+  36.36% {text-shadow:
+        calc( 0*var(--w)) 0 #000,calc(-1*var(--w)) 0 #000,calc(-2*var(--w)) 0 #000,calc(-3*var(--w)) -10px #000,calc(-4*var(--w)) 0 #000,
+        calc(-5*var(--w)) 0 #000,calc(-6*var(--w)) 0 #000,calc(-7*var(--w)) 0 #000,calc(-8*var(--w)) 0 #000,calc(-9*var(--w)) 0 #000}
+  45.45% {text-shadow:
+        calc( 0*var(--w)) 0 #000,calc(-1*var(--w)) 0 #000,calc(-2*var(--w)) 0 #000,calc(-3*var(--w)) 0 #000,calc(-4*var(--w)) -10px #000,
+        calc(-5*var(--w)) 0 #000,calc(-6*var(--w)) 0 #000,calc(-7*var(--w)) 0 #000,calc(-8*var(--w)) 0 #000,calc(-9*var(--w)) 0 #000}
+  54.54% {text-shadow:
+        calc( 0*var(--w)) 0 #000,calc(-1*var(--w)) 0 #000,calc(-2*var(--w)) 0 #000,calc(-3*var(--w)) 0 #000,calc(-4*var(--w)) 0 #000,
+        calc(-5*var(--w)) -10px #000,calc(-6*var(--w)) 0 #000,calc(-7*var(--w)) 0 #000,calc(-8*var(--w)) 0 #000,calc(-9*var(--w)) 0 #000}
+  63.63% {text-shadow:
+        calc( 0*var(--w)) 0 #000,calc(-1*var(--w)) 0 #000,calc(-2*var(--w)) 0 #000,calc(-3*var(--w)) 0 #000,calc(-4*var(--w)) 0 #000,
+        calc(-5*var(--w)) 0 #000,calc(-6*var(--w)) -10px #000,calc(-7*var(--w)) 0 #000,calc(-8*var(--w)) 0 #000,calc(-9*var(--w)) 0 #000}
+  72.72% {text-shadow:
+        calc( 0*var(--w)) 0 #000,calc(-1*var(--w)) 0 #000,calc(-2*var(--w)) 0 #000,calc(-3*var(--w)) 0 #000,calc(-4*var(--w)) 0 #000,
+        calc(-5*var(--w)) 0 #000,calc(-6*var(--w)) 0 #000,calc(-7*var(--w)) -10px #000,calc(-8*var(--w)) 0 #000,calc(-9*var(--w)) 0 #000}
+  81.81% {text-shadow:
+        calc( 0*var(--w)) 0 #000,calc(-1*var(--w)) 0 #000,calc(-2*var(--w)) 0 #000,calc(-3*var(--w)) 0 #000,calc(-4*var(--w)) 0 #000,
+        calc(-5*var(--w)) 0 #000,calc(-6*var(--w)) 0 #000,calc(-7*var(--w)) 0 #000,calc(-8*var(--w)) -10px #000,calc(-9*var(--w)) 0 #000}
+  90.90% {text-shadow:
+        calc( 0*var(--w)) 0 #000,calc(-1*var(--w)) 0 #000,calc(-2*var(--w)) 0 #000,calc(-3*var(--w)) 0 #000,calc(-4*var(--w)) 0 #000,
+        calc(-5*var(--w)) 0 #000,calc(-6*var(--w)) 0 #000,calc(-7*var(--w)) 0 #000,calc(-8*var(--w)) 0 #000,calc(-9*var(--w)) -10px #000}
+    }
+</style>
+</head>
+<body style="display:flex;flex-direction:column;justify-content:center;align-items:center">
+<h1 id="header">Face Liveness Detection</h1>
+<div id="canvasContainer" style="text-align:left;">
+    <canvas id="canvas" width="400" height="400" style="width:240px;height:320px"></canvas><br>
+    <input type="file" id="imageInput" accept="image/*"><br>
+    <button id="uploadButton">Upload Image</button>
+    <div id="loader"></div>
+    <h3>Liveness Result: <span id="inference_result" style="color:#0b8b52"></span></h3>
+<!--    <h3>Score: <span id="inference_score" style="color:red;margin-bottom:0"></span></h3>-->
+    <h3 id="errorMessage" style="color:red;margin-top:0"></h3>
+<!--    <h4>Contact Information: RODION ZHUPYNA</h4>-->
+<!--    <h4>Email: rodionzhupyna@gmail.com</h4>-->
+<!--    <h4>Skype: live:.cid.bc9cbbe477485cf6</h4>-->
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const imageInput = document.getElementById('imageInput');
+    const uploadButton = document.getElementById('uploadButton');
+    const inferenceResult = document.getElementById('inference_result');
+<!--    const inferenceScore = document.getElementById('inference_score');-->
+    const errorMessage = document.getElementById('errorMessage');
+    const loader = document.getElementById('loader');
+    loader.style.display = 'none';
+
+    imageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function(event) {
+            const img = new Image();
+            img.onload = function() {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+            }
+            img.src = event.target.result;
+        }
+        reader.readAsDataURL(file);
+    });
+
+    uploadButton.addEventListener('click', function() {
+        const inferenceResult = document.getElementById('inference_result');
+        inferenceResult.innerHTML = '';
+        loader.style.display = 'block';
+        const file = imageInput.files[0];
+        const formData = new FormData();
+        formData.append('face', file);
+
+        fetch('http://158.101.16.139:5000/face_liveness', {
+<!--        fetch('http://127.0.0.1:5000/face_liveness', {-->
+            method: 'POST',
+            body: formData
+        })
+        .then( response => response.json())
+        .then(data => {
+            loader.style.display = 'none';
+            if (data.success) {
+                errorMessage.innerHTML = '';
+                inferenceResult.innerHTML = data.face_liveness;
+<!--                inferenceScore.innerHTML = data.score;-->
+            }
+            else {
+                errorMessage.innerHTML = data.error;
+                inferenceResult.innerHTML = '';
+                inferenceScore.innerHTML = '';
+            }
+<!--            console.log("Result:", data);-->
+
+        })
+        .catch(error => {
+            console.log("error:",error)
+            // Handle error
+        });
+    });
+</script>
+</body>
+</html>
