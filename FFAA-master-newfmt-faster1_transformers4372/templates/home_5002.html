@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+  <title>Face Liveness Detection</title>
+
+  <style>
+    :root {
+      --bg-page: #f4f5fb;
+      --bg-shell: #ffffff;
+      --bg-soft: #f9fafb;
+      --border-subtle: #e5e7eb;
+      --border-strong: #d1d5db;
+      --accent: #0f766e;
+      --accent-soft: rgba(15, 118, 110, 0.12);
+      --accent-strong: #14b8a6;
+      --accent-text: #064e3b;
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --text-soft: #9ca3af;
+      --error: #dc2626;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-full: 999px;
+      --shadow-card: 0 18px 40px rgba(15, 23, 42, 0.08);
+      --transition-fast: 140ms ease-out;
+      --transition-med: 200ms ease;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      background: radial-gradient(circle at top, #e5f3ff 0, #f4f5fb 40%, #eef2ff 100%);
+      color: var(--text-main);
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .app-shell {
+      width: 100%;
+      max-width: 1140px;
+      background: var(--bg-shell);
+      border-radius: 26px;
+      box-shadow: var(--shadow-card);
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      overflow: hidden;
+      border: 1px solid rgba(209, 213, 219, 0.6);
+    }
+
+    @media (max-width: 900px) {
+      body {
+        padding: 12px;
+      }
+      .app-shell {
+        grid-template-columns: minmax(0, 1fr);
+        border-radius: 18px;
+      }
+      .sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: linear-gradient(180deg, #0f172a 0%, #020617 60%, #0f766e 100%);
+      color: #f9fafb;
+      padding: 20px 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .sidebar::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(56, 189, 248, 0.25) 0, transparent 55%),
+        radial-gradient(circle at 90% 100%, rgba(52, 211, 153, 0.28) 0, transparent 55%);
+      opacity: 0.8;
+      pointer-events: none;
+    }
+
+    .sidebar-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      height: 100%;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      background: radial-gradient(circle at 30% 0%, #22c55e 0, #0f766e 40%, #0b1120 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #ecfeff;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.8);
+    }
+
+    .brand-text-main {
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .brand-text-sub {
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+
+    .sidebar-caption {
+      font-size: 0.88rem;
+      line-height: 1.4;
+      color: #e5e7eb;
+    }
+
+    .sidebar-callout {
+      margin-top: 4px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      font-size: 0.78rem;
+      color: #d1d5db;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar-callout span:first-child {
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      color: #a5f3fc;
+    }
+
+    .sidebar-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: #cbd5f5;
+    }
+
+    .sidebar-list li {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    .sidebar-list-bullet {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      margin-top: 2px;
+      background: rgba(15, 118, 110, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #ecfeff;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+
+    .sidebar-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 10px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+    }
+
+    .sidebar-pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.7);
+    }
+
+    /* Main area */
+    .main {
+      background: var(--bg-soft);
+      padding: 18px 22px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .main-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .main-title-block {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--text-main);
+    }
+
+    .page-subtitle {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .main-badge {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 11px;
+      border-radius: var(--radius-full);
+      background: var(--accent-soft);
+      color: var(--accent-text);
+      font-size: 0.78rem;
+      border: 1px solid rgba(45, 212, 191, 0.4);
+    }
+
+    .main-badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--accent-strong);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 14px;
+    }
+
+    @media (max-width: 900px) {
+      .main {
+        padding: 16px;
+      }
+      .main-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .card {
+      background: var(--bg-shell);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      padding: 16px 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title {
+      font-size: 0.88rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-soft);
+      margin: 0;
+    }
+
+    .card-tag {
+      font-size: 0.72rem;
+      padding: 4px 9px;
+      border-radius: var(--radius-full);
+      border: 1px dashed var(--border-strong);
+      color: var(--text-soft);
+      background: #f9fafb;
+    }
+
+    /* Canvas / Preview */
+    .preview-wrapper {
+      border-radius: var(--radius-md);
+      border: 1px dashed rgba(148, 163, 184, 0.9);
+      background: repeating-linear-gradient(
+        135deg,
+        #f9fafb 0,
+        #f9fafb 12px,
+        #eef2ff 12px,
+        #eef2ff 24px
+      );
+      padding: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 360px; /* bigger area so canvas feels large */
+      position: relative;
+    }
+
+    .preview-placeholder-label {
+      position: absolute;
+      top: 10px;
+      left: 14px;
+      font-size: 0.75rem;
+      color: var(--text-soft);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(249, 250, 251, 0.9);
+      border-radius: var(--radius-full);
+      padding: 4px 8px;
+    }
+
+    canvas {
+      width: 360px !important;   /* large preview */
+      height: 360px !important;  /* large preview */
+      border-radius: 14px;
+      border: 1px solid rgba(209, 213, 219, 0.9);
+      background: #eef2ff;
+      box-shadow: 0 12px 30px rgba(148, 163, 184, 0.4);
+    }
+
+    .meta-grid {
+      margin: 4px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: #f9fafb;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .meta-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-soft);
+      padding: 3px 7px;
+      border-radius: var(--radius-full);
+      background: #eef2ff;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .field-block {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field-label {
+      font-size: 0.83rem;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .field-help {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+
+    .file-input-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .file-input {
+      position: relative;
+      overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .file-input input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .file-input-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border-strong);
+      font-size: 0.85rem;
+      color: var(--text-main);
+      background: #f9fafb;
+      cursor: pointer;
+      transition: border-color var(--transition-fast), background var(--transition-fast),
+        transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .file-input-label span.icon {
+      font-size: 1rem;
+      opacity: 0.9;
+    }
+
+    .file-input-label:hover {
+      border-color: var(--accent-strong);
+      background: #ffffff;
+      box-shadow: 0 10px 26px rgba(148, 163, 184, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .selected-file {
+      font-size: 0.78rem;
+      color: var(--text-soft);
+      max-width: 240px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .primary-btn {
+      border: none;
+      border-radius: var(--radius-full);
+      padding: 9px 20px;
+      font-size: 0.87rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #ecfeff;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 16px 34px rgba(15, 118, 110, 0.45);
+      transition: transform var(--transition-med), box-shadow var(--transition-med),
+        filter var(--transition-med);
+    }
+
+    .primary-btn span.btn-icon {
+      font-size: 1rem;
+    }
+
+    .primary-btn:hover {
+      transform: translateY(-1.5px);
+      box-shadow: 0 20px 38px rgba(15, 118, 110, 0.6);
+      filter: brightness(1.03);
+    }
+
+    .primary-btn:active {
+      transform: translateY(-0.5px);
+      box-shadow: 0 10px 24px rgba(15, 118, 110, 0.45);
+      filter: brightness(0.98);
+    }
+
+    .primary-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 11px;
+      border-radius: var(--radius-full);
+      font-size: 0.78rem;
+      background: #f9fafb;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-soft);
+      gap: 7px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #9ca3af;
+    }
+
+    .status-pill.active .status-dot {
+      background: var(--accent-strong);
+      box-shadow: 0 0 12px rgba(45, 212, 191, 0.8);
+    }
+
+    .loader {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--text-soft);
+      margin-top: 4px;
+    }
+
+    .loader-spinner {
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      border: 2px solid rgba(209, 213, 219, 0.8);
+      border-top-color: var(--accent-strong);
+      animation: spin 0.7s linear infinite;
+    }
+
+    .loader-label {
+      letter-spacing: 0.08em;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .inline-help {
+      font-size: 0.76rem;
+      color: var(--text-soft);
+    }
+
+    .result-block {
+      background: #f9fafb;
+      border-radius: var(--radius-md);
+      padding: 10px 11px;
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 70px;
+    }
+
+    .result-label {
+      font-size: 0.75rem;
+      color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .result-value {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #111827;
+      white-space: pre-line;
+    }
+
+    .result-highlight {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .result-value.empty {
+      color: var(--text-soft);
+      font-style: italic;
+      font-size: 0.82rem;
+    }
+
+    .error-text {
+      font-size: 0.8rem;
+      color: var(--error);
+      min-height: 1.1em;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-inner">
+        <div class="brand">
+          <div class="brand-logo">F</div>
+          <div>
+            <div class="brand-text-main">Liveness Lab</div>
+            <div class="brand-text-sub">Face integrity console</div>
+          </div>
+        </div>
+
+        <p class="sidebar-caption">
+          Verify whether a face image comes from a live person or a spoofed source.
+          Upload an image on the right and review the detailed analysis.
+        </p>
+
+        <div class="sidebar-callout">
+          <span>Quick checklist</span>
+          <ul class="sidebar-list">
+            <li>
+              <span class="sidebar-list-bullet">1</span>
+              <span>Use a single-person, frontal face photo.</span>
+            </li>
+            <li>
+              <span class="sidebar-list-bullet">2</span>
+              <span>Avoid heavy motion blur or very low light.</span>
+            </li>
+            <li>
+              <span class="sidebar-list-bullet">3</span>
+              <span>Ensure the face is not cropped too tightly.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sidebar-footer">
+          <div class="sidebar-pill">
+            <span class="sidebar-pill-dot"></span>
+            <span>Service status: Online</span>
+          </div>
+          <span>Images are processed for inference only and are not stored.</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="main-header">
+        <div class="main-title-block">
+          <h1 class="page-title">Face Liveness Detection</h1>
+          <p class="page-subtitle">
+            Start by selecting a face image. When you’re ready, run the liveness check.
+          </p>
+        </div>
+        <div class="main-badge">
+          <span class="main-badge-dot"></span>
+          <span>Real-time evaluation</span>
+        </div>
+      </header>
+
+      <section class="main-grid">
+        <!-- Left: Preview -->
+        <section class="card">
+          <div class="card-header-row">
+            <h2 class="card-title">Image preview</h2>
+            <span class="card-tag">Live canvas</span>
+          </div>
+
+          <div class="preview-wrapper">
+            <div class="preview-placeholder-label">
+              <span>Preview</span>
+            </div>
+            <!-- fixed big canvas -->
+            <canvas id="canvas" width="360" height="360"></canvas>
+          </div>
+
+          <ul class="meta-grid">
+            <li class="meta-item">
+              <span class="meta-label">Format</span>
+              <span>Common image formats (JPG, PNG, etc.)</span>
+            </li>
+            <li class="meta-item">
+              <span class="meta-label">Tip</span>
+              <span>Use a sharp, frontal face with neutral lighting.</span>
+            </li>
+          </ul>
+        </section>
+
+        <!-- Right: Controls & Result -->
+        <section class="card">
+          <div class="card-header-row">
+            <h2 class="card-title">Upload & analysis</h2>
+            <span class="card-tag">Step-by-step</span>
+          </div>
+
+          <div class="controls">
+            <div class="field-block">
+              <div class="field-label">Face image</div>
+              <div class="file-input-row">
+                <label class="file-input">
+                  <span class="file-input-label">
+                    <span class="icon">📎</span>
+                    <span>Select image</span>
+                  </span>
+                  <input
+                    type="file"
+                    id="imageInput"
+                    accept="image/*"
+                  />
+                </label>
+                <span id="selectedFileName" class="selected-file">
+                  No file selected
+                </span>
+              </div>
+              <p class="field-help">
+                Supported formats include JPG, JPEG, PNG and other common still images.
+              </p>
+            </div>
+
+            <div class="field-block">
+              <div class="action-row">
+                <button id="uploadButton" class="primary-btn">
+                  <span class="btn-icon">▶</span>
+                  <span>Run liveness check</span>
+                </button>
+                <span id="statusPill" class="status-pill" aria-live="polite">
+                  <span class="status-dot"></span>
+                  <span>Status: Idle</span>
+                </span>
+              </div>
+              <div id="loader" class="loader" aria-live="polite">
+                <div class="loader-spinner"></div>
+                <span class="loader-label">Analyzing image...</span>
+              </div>
+              <p class="inline-help">
+                The request is sent to the liveness detection endpoint. Response details
+                will appear below once processing is complete.
+              </p>
+            </div>
+
+            <div class="field-block">
+              <div class="result-block" aria-live="polite">
+                <div class="result-label">Liveness result</div>
+                <div id="inference_result" class="result-value empty">
+                  No result yet
+                </div>
+              </div>
+              <p id="errorMessage" class="error-text"></p>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const imageInput = document.getElementById("imageInput");
+    const uploadButton = document.getElementById("uploadButton");
+    const inferenceResult = document.getElementById("inference_result");
+    const errorMessage = document.getElementById("errorMessage");
+    const loader = document.getElementById("loader");
+    const statusPill = document.getElementById("statusPill");
+    const selectedFileName = document.getElementById("selectedFileName");
+
+    let currentImage = null;
+
+    loader.style.display = "none";
+
+    function setStatus(mode, text) {
+      statusPill.classList.toggle("active", mode === "active");
+      const dot = statusPill.querySelector(".status-dot");
+      if (mode === "error") {
+        dot.style.backgroundColor = "#dc2626";
+        dot.style.boxShadow = "0 0 12px rgba(220, 38, 38, 0.7)";
+      } else if (mode === "active") {
+        dot.style.backgroundColor = "#14b8a6";
+        dot.style.boxShadow = "0 0 12px rgba(45, 212, 191, 0.8)";
+      } else {
+        dot.style.backgroundColor = "#9ca3af";
+        dot.style.boxShadow = "none";
+      }
+      statusPill.querySelector("span:nth-child(2)").textContent =
+        "Status: " + text;
+    }
+
+    function resetResult() {
+      inferenceResult.textContent = "No result yet";
+      inferenceResult.classList.add("empty");
+    }
+
+    // UPDATED: robust handling of \n & highlighting
+    function showResult(text) {
+      let formatted = (text || "").toString();
+
+      // 1) If backend sends literal "\n", convert them to real newlines
+      formatted = formatted.replace(/\\n/g, "\n");
+
+      // 2) Ensure labels start on their own line
+      formatted = formatted
+        .replace(/Analysis result:/gi, "\nAnalysis result:")
+        .replace(/Forgery type:/gi, "\nForgery type:")
+        .replace(/Match score:/gi, "\nMatch score:")
+        .replace(/Difficulty:/gi, "\nDifficulty:");
+
+      // Remove leading newline
+      formatted = formatted.replace(/^\s*\n/, "");
+
+      // 3) Escape HTML
+      formatted = formatted
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      // Turn newlines into <br>
+      let html = formatted.replace(/\n/g, "<br>");
+
+      // 4) Highlight labels
+      html = html
+        .replace(/Image Description:/gi, '<span class="result-highlight">Image Description:</span>')
+        .replace(/Forgery Reasoning:/gi, '<span class="result-highlight">Forgery Reasoning:</span>')
+        .replace(/Analysis result:/gi, '<span class="result-highlight">Analysis result:</span>')
+        .replace(/Forgery type:/gi, '<span class="result-highlight">Forgery type:</span>')
+        .replace(/Match score:/gi, '<span class="result-highlight">Match score:</span>')
+        .replace(/Difficulty:/gi, '<span class="result-highlight">Difficulty:</span>');
+
+      inferenceResult.innerHTML = html || "Success";
+      inferenceResult.classList.remove("empty");
+    }
+
+    function clearError() {
+      errorMessage.textContent = "";
+    }
+
+    function showError(msg) {
+      errorMessage.textContent = msg || "Something went wrong.";
+    }
+
+    imageInput.addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      resetResult();
+      clearError();
+
+      if (!file) {
+        selectedFileName.textContent = "No file selected";
+        return;
+      }
+
+      selectedFileName.textContent = file.name;
+
+      const reader = new FileReader();
+
+      reader.onload = function (event) {
+        const img = new Image();
+        img.onload = function () {
+          currentImage = img;
+
+          // fixed big canvas size
+          const maxWidth = canvas.width;   // 420
+          const maxHeight = canvas.height; // 420
+
+          let width = img.width;
+          let height = img.height;
+
+          const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+          width *= scale;
+          height *= scale;
+
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          // center image in canvas
+          const dx = (canvas.width - width) / 2;
+          const dy = (canvas.height - height) / 2;
+
+          ctx.drawImage(img, dx, dy, width, height);
+        };
+        img.src = event.target.result;
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+    uploadButton.addEventListener("click", function () {
+      clearError();
+      resetResult();
+
+      const file = imageInput.files[0];
+      if (!file) {
+        showError("Please select an image before running the liveness check.");
+        setStatus("error", "No file selected");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("face", file);
+
+      loader.style.display = "inline-flex";
+      uploadButton.disabled = true;
+      setStatus("active", "Running");
+
+      fetch("http://158.101.16.139:5002/face_liveness", {
+        method: "POST",
+        body: formData,
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Server returned " + response.status);
+          }
+          return response.json();
+        })
+        .then((data) => {
+          loader.style.display = "none";
+          uploadButton.disabled = false;
+
+          if (data && data.success) {
+            clearError();
+            showResult(data.face_liveness || "Success");
+            setStatus("idle", "Ready");
+          } else {
+            const message =
+              (data && (data.error || data.message)) ||
+              "Detection failed. Please try another image.";
+            showError(message);
+            setStatus("error", "Error");
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          loader.style.display = "none";
+          uploadButton.disabled = false;
+          showError("Unable to reach liveness service. Please try again later.");
+          setStatus("error", "Network error");
+        });
+    });
+  </script>
+</body>
+</html>
