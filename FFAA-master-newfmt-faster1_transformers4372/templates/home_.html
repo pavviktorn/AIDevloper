@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+  <title>Face Liveness Detection</title>
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-soft: #111827;
+      --accent: #22c55e;
+      --accent-soft: rgba(34, 197, 94, 0.15);
+      --accent-strong: #16a34a;
+      --border-subtle: rgba(148, 163, 184, 0.4);
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --error: #f97373;
+      --radius-lg: 18px;
+      --radius-full: 999px;
+      --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.6);
+      --transition-fast: 150ms ease-out;
+      --transition-med: 220ms ease;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      background: radial-gradient(circle at top, #1f2937 0, #020617 55%, #000 100%);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .page-wrapper {
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    .app-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .app-title {
+      font-size: clamp(1.8rem, 3vw, 2.2rem);
+      font-weight: 650;
+      letter-spacing: 0.03em;
+      margin: 0 0 8px;
+      background: linear-gradient(120deg, #22c55e, #a855f7);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .app-subtitle {
+      margin: 0;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+      gap: 24px;
+    }
+
+    @media (max-width: 880px) {
+      .layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .card {
+      background: radial-gradient(circle at top left, #1e293b 0, #020617 65%);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-soft);
+      padding: 20px 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      opacity: 0.08;
+      background: radial-gradient(circle at top right, #22c55e 0, transparent 55%);
+      pointer-events: none;
+    }
+
+    .card-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    .section-title {
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      margin: 0 0 16px;
+    }
+
+    .canvas-wrapper {
+      border-radius: 16px;
+      border: 1px dashed rgba(148, 163, 184, 0.6);
+      background: radial-gradient(circle at top left, #0b1120 0, #020617 70%);
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 320px;
+    }
+
+    canvas {
+      max-width: 100%;
+      max-height: 420px;
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.9);
+      background:
+        repeating-conic-gradient(
+          rgba(30, 64, 175, 0.16) 0% 25%,
+          transparent 0% 50%
+        )
+        50% / 20px 20px;
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.8);
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .field-label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .file-input-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .file-input {
+      position: relative;
+      overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .file-input input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .file-input-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      font-size: 0.9rem;
+      color: var(--text-main);
+      background: rgba(15, 23, 42, 0.8);
+      cursor: pointer;
+      transition: border-color var(--transition-fast), background var(--transition-fast),
+        transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .file-input-label span.icon {
+      font-size: 1rem;
+      opacity: 0.9;
+    }
+
+    .file-input-label:hover {
+      border-color: var(--accent);
+      background: rgba(15, 23, 42, 0.95);
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.7);
+      transform: translateY(-1px);
+    }
+
+    .selected-file {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      max-width: 250px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .primary-btn {
+      border: none;
+      border-radius: var(--radius-full);
+      padding: 9px 22px;
+      font-size: 0.92rem;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent-strong), #22c55e);
+      color: #052e16;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 12px 30px rgba(22, 163, 74, 0.4);
+      transition: transform var(--transition-med), box-shadow var(--transition-med),
+        filter var(--transition-med);
+    }
+
+    .primary-btn span.btn-icon {
+      font-size: 1rem;
+    }
+
+    .primary-btn:hover {
+      transform: translateY(-1.5px);
+      box-shadow: 0 16px 40px rgba(22, 163, 74, 0.6);
+      filter: brightness(1.03);
+    }
+
+    .primary-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 8px 20px rgba(22, 163, 74, 0.4);
+      filter: brightness(0.98);
+    }
+
+    .primary-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .inline-help {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: var(--text-muted);
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #4b5563;
+    }
+
+    .status-pill.active .status-dot {
+      background: var(--accent);
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.9);
+    }
+
+    .result-block {
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 14px;
+      padding: 12px 14px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .result-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .result-value {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #a7b0c0;
+      white-space: pre-line;
+<!--      text-transform: capitalize;-->
+    }
+
+    .result-highlight {
+      color: var(--accent);    /* green highlight */
+      font-weight: 600;
+    }
+
+    .result-value.empty {
+      color: #6b7280;
+      font-style: italic;
+      font-size: 0.92rem;
+      text-transform: none;
+    }
+
+    .error-text {
+      font-size: 0.85rem;
+      color: var(--error);
+      min-height: 1.1em;
+    }
+
+    .loader {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .loader-spinner {
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      border: 2px solid rgba(148, 163, 184, 0.4);
+      border-top-color: var(--accent);
+      animation: spin 0.7s linear infinite;
+    }
+
+    .loader-label {
+      letter-spacing: 0.08em;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .meta-list {
+      margin: 14px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .meta-list li {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .meta-badge {
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <header class="app-header">
+      <h1 class="app-title">Face Liveness Detection</h1>
+      <p class="app-subtitle">
+        Upload a face image to verify liveness using the detection service.
+      </p>
+    </header>
+
+    <main class="layout">
+      <!-- Left: Canvas / Preview -->
+      <section class="card">
+        <div class="card-inner">
+          <p class="section-title">Live Preview</p>
+
+          <div class="canvas-wrapper">
+            <canvas id="canvas" width="400" height="400"></canvas>
+          </div>
+
+          <ul class="meta-list">
+            <li>
+              <span class="meta-badge">Format</span>
+              Supported: common image formats (JPG, PNG, etc.)
+            </li>
+            <li>
+              <span class="meta-badge">Tip</span>
+              Use a clear, frontal face image with good lighting.
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Right: Controls & Results -->
+      <section class="card">
+        <div class="card-inner controls">
+          <p class="section-title">Upload & Inference</p>
+
+          <div>
+            <div class="field-label">Face image</div>
+            <div class="file-input-row">
+              <label class="file-input">
+                <span class="file-input-label">
+                  <span class="icon">📁</span>
+                  <span>Select image</span>
+                </span>
+                <input
+                  type="file"
+                  id="imageInput"
+                  accept="image/*"
+                />
+              </label>
+              <span id="selectedFileName" class="selected-file">
+                No file selected
+              </span>
+            </div>
+            <p class="inline-help">
+              Your image is processed securely on the backend. It is not stored
+              permanently.
+            </p>
+          </div>
+
+          <div>
+            <button id="uploadButton" class="primary-btn">
+              <span class="btn-icon">▶</span>
+              <span>Run Liveness Check</span>
+            </button>
+            <span id="statusPill" class="status-pill" aria-live="polite">
+              <span class="status-dot"></span>
+              <span>Status: Idle</span>
+            </span>
+          </div>
+
+          <div id="loader" class="loader" aria-live="polite">
+            <div class="loader-spinner"></div>
+            <span class="loader-label">Analyzing image...</span>
+          </div>
+
+          <div class="result-block" aria-live="polite">
+            <div class="result-label">Liveness Result</div>
+            <div id="inference_result" class="result-value empty">
+              No result yet
+            </div>
+          </div>
+
+          <p id="errorMessage" class="error-text"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const imageInput = document.getElementById("imageInput");
+    const uploadButton = document.getElementById("uploadButton");
+    const inferenceResult = document.getElementById("inference_result");
+    const errorMessage = document.getElementById("errorMessage");
+    const loader = document.getElementById("loader");
+    const statusPill = document.getElementById("statusPill");
+    const selectedFileName = document.getElementById("selectedFileName");
+
+    let currentImage = null;
+
+    loader.style.display = "none";
+
+    function setStatus(mode, text) {
+      statusPill.classList.toggle("active", mode === "active");
+      statusPill.querySelector(".status-dot").style.backgroundColor =
+        mode === "error" ? "#f97373" : mode === "active" ? "#22c55e" : "#4b5563";
+      statusPill.querySelector("span:nth-child(2)").textContent =
+        "Status: " + text;
+    }
+
+    function resetResult() {
+      inferenceResult.textContent = "No result yet";
+      inferenceResult.classList.add("empty");
+    }
+
+    function showResult(text) {
+
+      let formatted = text;
+
+      // Insert newline before certain labels (except if already at beginning)
+      formatted = formatted.replace(/(Analysis result:)/gi, '\n$1');
+      formatted = formatted.replace(/(Forgery type:)/gi, '\n$1');
+      formatted = formatted.replace(/(Match score:)/gi, '\n$1');
+      formatted = formatted.replace(/(Difficulty:)/gi, '\n$1');
+
+      // Highlight labels
+      const highlighted = formatted
+        .replace(/Image Description:/gi, '<span class="result-highlight">Image Description:</span>')
+        .replace(/Forgery Reasoning:/gi, '<span class="result-highlight">Forgery Reasoning:</span>')
+        .replace(/Analysis result:/gi, '<span class="result-highlight">Analysis result:</span>')
+        .replace(/Forgery type:/gi, '<span class="result-highlight">Forgery type:</span>')
+        .replace(/Match score:/gi, '<span class="result-highlight">Match score:</span>')
+        .replace(/Difficulty:/gi, '<span class="result-highlight">Difficulty:</span>');
+
+      inferenceResult.innerHTML = highlighted;
+      inferenceResult.classList.remove("empty");
+    }
+
+    function clearError() {
+      errorMessage.textContent = "";
+    }
+
+    function showError(msg) {
+      errorMessage.textContent = msg || "Something went wrong.";
+    }
+
+    imageInput.addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      resetResult();
+      clearError();
+
+      if (!file) {
+        selectedFileName.textContent = "No file selected";
+        return;
+      }
+
+      selectedFileName.textContent = file.name;
+
+      const reader = new FileReader();
+
+      reader.onload = function (event) {
+        const img = new Image();
+        img.onload = function () {
+          currentImage = img;
+
+          const maxWidth = canvas.clientWidth || 400;
+          const maxHeight = canvas.clientHeight || 400;
+          let { width, height } = img;
+
+          const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+          width *= scale;
+          height *= scale;
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, width, height);
+        };
+        img.src = event.target.result;
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+    uploadButton.addEventListener("click", function () {
+      clearError();
+      resetResult();
+
+      const file = imageInput.files[0];
+      if (!file) {
+        showError("Please select an image before running liveness check.");
+        setStatus("error", "No file selected");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("face", file);
+
+      loader.style.display = "inline-flex";
+      uploadButton.disabled = true;
+      setStatus("active", "Running");
+
+      // Use a relative URL so it works with your Flask app:
+      // In Flask, define a route at /face_liveness
+      fetch("/face_liveness", {
+        method: "POST",
+        body: formData,
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Server returned " + response.status);
+          }
+          return response.json();
+        })
+        .then((data) => {
+          loader.style.display = "none";
+          uploadButton.disabled = false;
+
+          if (data && data.success) {
+            clearError();
+            showResult(data.face_liveness || "Success");
+            setStatus("idle", "Ready");
+          } else {
+            const message =
+              (data && (data.error || data.message)) ||
+              "Detection failed. Please try another image.";
+            showError(message);
+            setStatus("error", "Error");
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          loader.style.display = "none";
+          uploadButton.disabled = false;
+          showError("Unable to reach liveness service. Please try again later.");
+          setStatus("error", "Network error");
+        });
+    });
+  </script>
+</body>
+</html>
